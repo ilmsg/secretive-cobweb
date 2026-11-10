@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>การเชื่อมต่อและใช้งาน MongoDB ในภาษา Rust</title>
+  <link rel="stylesheet" href="https://unpkg.com">
+  <script src="https://zenn.studio"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; line-height: 1.7; background: #f9fafb; margin: 0; }
+    .container { max-width: 820px; margin: 40px auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav { margin-bottom: 24px; font-size: 14px; }
+    .nav a { color: #3ea8ff; text-decoration: none; }
+    .card-list { list-style: none; padding: 0; }
+    .card-list li { border-bottom: 1px solid #eee; padding: 12px 0; }
+    .card-list a { text-decoration: none; color: #111; font-weight: bold; font-size: 18px; }
+    .card-list a:hover { color: #3ea8ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav"><a href="../index.html">← กลับหน้าหลัก</a></div>
+    <h1>🐥 การเชื่อมต่อและใช้งาน MongoDB ในภาษา Rust</h1><div class="znc"><p data-line="0" class="code-line">การเชื่อมต่อและใช้งาน MongoDB ในภาษา Rust สามารถทำได้โดยใช้ไลบรารีทางการที่ชื่อว่า mongodb ร่วมกับ tokio สำหรับจัดการการทำงานแบบ Asynchronous และ serde สำหรับแปลงข้อมูล Struct เป็น BSON <a href="https://docs.rs/mongodb/latest/mongodb/" target="_blank" rel="nofollow noopener noreferrer">1</a>, <a href="https://www.mongodb.com/resources/languages/rust" target="_blank" rel="nofollow noopener noreferrer">2</a></p>
+<p data-line="2" class="code-line">ตัวอย่างพื้นฐานตั้งแต่การตั้งค่าโปรเจกต์ไปจนถึงการจัดการข้อมูล (CRUD) ครบจบในไฟล์เดียวมีขั้นตอนดังนี้ครับ</p>
+<ol data-line="4" class="code-line">
+<li data-line="4" class="code-line">ตั้งค่า Dependencies ใน <code>Cargo.toml</code></li>
+</ol>
+<p data-line="6" class="code-line">สร้างโปรเจกต์ใหม่ด้วยคำสั่ง <code>cargo new rust-mongo-demo</code> จากนั้นเพิ่มไลบรารีที่จำเป็นลงในไฟล์ <code>Cargo.toml</code> (อ้างอิงเวอร์ชันล่าสุดในตระกูล v3.x) <a href="https://www.mongodb.com/docs/drivers/rust/current/crud/transactions/" target="_blank" rel="nofollow noopener noreferrer">1</a>, <a href="https://www.mongodb.com/docs/drivers/rust/current/get-started/" target="_blank" rel="nofollow noopener noreferrer">2</a>, <a href="https://github.com/mongodb/mongo-rust-driver" target="_blank" rel="nofollow noopener noreferrer">3</a></p>
+<div class="code-block-container"><pre class="shiki github-dark" style="background-color:#151e2c;color:#e1e4e8"><code class="code-line" data-line="8"><span class="line"><span style="color:#E1E4E8">[</span><span style="color:#B392F0">dependencies</span><span style="color:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#E1E4E8">mongodb = </span><span style="color:#9ECBFF">"3.9"</span></span>
+<span class="line"><span style="color:#E1E4E8">tokio = { version = </span><span style="color:#9ECBFF">"1"</span><span style="color:#E1E4E8">, features = [</span><span style="color:#9ECBFF">"full"</span><span style="color:#E1E4E8">] }</span></span>
+<span class="line"><span style="color:#E1E4E8">serde = { version = </span><span style="color:#9ECBFF">"1.0"</span><span style="color:#E1E4E8">, features = [</span><span style="color:#9ECBFF">"derive"</span><span style="color:#E1E4E8">] }</span></span>
+<span class="line"><span style="color:#E1E4E8">futures = </span><span style="color:#9ECBFF">"0.3"</span></span>
+<span class="line"></span></code></pre></div><ol start="2" data-line="16" class="code-line">
+<li data-line="16" class="code-line">ตัวอย่างโค้ด CRUD พื้นฐาน (src/main.rs)</li>
+</ol>
+<p data-line="18" class="code-line">ตัวอย่างนี้แสดงการเชื่อมต่อฐานข้อมูล การเพิ่ม (Insert) การค้นหา (Find) การอัปเดต (Update) และการลบข้อมูล (Delete) โดยใช้ Struct ของ Rust เพื่อให้ได้ความปลอดภัยของชนิดข้อมูล (Type-safe)</p>
+<div class="code-block-container"><pre class="shiki github-dark" style="background-color:#151e2c;color:#e1e4e8"><code class="code-line" data-line="20"><span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> futures</span><span style="color:#F97583">::</span><span style="color:#B392F0">stream</span><span style="color:#F97583">::</span><span style="color:#B392F0">TryStreamExt</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> mongodb</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#B392F0">    bson</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">{doc, </span><span style="color:#B392F0">oid</span><span style="color:#F97583">::</span><span style="color:#B392F0">ObjectId</span><span style="color:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#B392F0">    Client</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Collection</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">};</span></span>
+<span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> serde</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">{</span><span style="color:#B392F0">Deserialize</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Serialize</span><span style="color:#E1E4E8">};</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">// กำหนดโครงสร้างข้อมูล (Model)</span></span>
+<span class="line"><span style="color:#E1E4E8">#[derive(</span><span style="color:#B392F0">Debug</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Serialize</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Deserialize</span><span style="color:#E1E4E8">)]</span></span>
+<span class="line"><span style="color:#F97583">struct</span><span style="color:#B392F0"> Book</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#E1E4E8">    #[serde(rename </span><span style="color:#F97583">=</span><span style="color:#9ECBFF"> "_id"</span><span style="color:#E1E4E8">, skip_serializing_if </span><span style="color:#F97583">=</span><span style="color:#9ECBFF"> "Option::is_none"</span><span style="color:#E1E4E8">)]</span></span>
+<span class="line"><span style="color:#E1E4E8">    id</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Option</span><span style="color:#E1E4E8">&lt;</span><span style="color:#B392F0">ObjectId</span><span style="color:#E1E4E8">&gt;,</span></span>
+<span class="line"><span style="color:#E1E4E8">    title</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    author</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    year</span><span style="color:#F97583">:</span><span style="color:#B392F0"> i32</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E1E4E8">#[tokio</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">main]</span></span>
+<span class="line"><span style="color:#F97583">async</span><span style="color:#F97583"> fn</span><span style="color:#B392F0"> main</span><span style="color:#E1E4E8">() </span><span style="color:#F97583">-&gt;</span><span style="color:#B392F0"> mongodb</span><span style="color:#F97583">::</span><span style="color:#B392F0">error</span><span style="color:#F97583">::</span><span style="color:#B392F0">Result</span><span style="color:#E1E4E8">&lt;()&gt; {</span></span>
+<span class="line"><span style="color:#a0aab5">    // 1. เชื่อมต่อกับ MongoDB (เปลี่ยน URI เป็นของคุณ เช่น MongoDB Atlas หรือ Localhost)</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> uri </span><span style="color:#F97583">=</span><span style="color:#9ECBFF"> "mongodb://localhost:27017"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> client </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Client</span><span style="color:#F97583">::</span><span style="color:#B392F0">with_uri_str</span><span style="color:#E1E4E8">(uri)</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // เลือก Database และ Collection (ระบุ Type เป็น Book)</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> db </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> client</span><span style="color:#F97583">.</span><span style="color:#B392F0">database</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"library_db"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> books_coll</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Collection</span><span style="color:#E1E4E8">&lt;</span><span style="color:#B392F0">Book</span><span style="color:#E1E4E8">&gt; </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> db</span><span style="color:#F97583">.</span><span style="color:#B392F0">collection</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"books"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"เชื่อมต่อ MongoDB สำเร็จ!"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#a0aab5">    // 2. CREATE: เพิ่มข้อมูลใหม่ (Insert One)</span></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> new_book </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Book</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#E1E4E8">        id</span><span style="color:#F97583">:</span><span style="color:#B392F0"> None</span><span style="color:#E1E4E8">, </span><span style="color:#a0aab5">// ให้ MongoDB สร้าง _id ให้อัตโนมัติ</span></span>
+<span class="line"><span style="color:#E1E4E8">        title</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#F97583">::</span><span style="color:#B392F0">from</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"The Rust Programming Language"</span><span style="color:#E1E4E8">),</span></span>
+<span class="line"><span style="color:#E1E4E8">        author</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#F97583">::</span><span style="color:#B392F0">from</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"Steve Klabnik"</span><span style="color:#E1E4E8">),</span></span>
+<span class="line"><span style="color:#E1E4E8">        year</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> 2023</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> insert_result </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> books_coll</span><span style="color:#F97583">.</span><span style="color:#B392F0">insert_one</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">new_book)</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"เพิ่มข้อมูลสำเร็จ ID: {:?}"</span><span style="color:#E1E4E8">, insert_result</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">inserted_id);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#a0aab5">    // 3. READ: ค้นหาข้อมูล (Find One &amp; Find Many)</span></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#a0aab5">    // ค้นหา 1 รายการ</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> filter </span><span style="color:#F97583">=</span><span style="color:#B392F0"> doc!</span><span style="color:#E1E4E8"> { </span><span style="color:#9ECBFF">"title"</span><span style="color:#F97583">:</span><span style="color:#9ECBFF"> "The Rust Programming Language"</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#F97583"> let</span><span style="color:#B392F0"> Some</span><span style="color:#E1E4E8">(book) </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> books_coll</span><span style="color:#F97583">.</span><span style="color:#B392F0">find_one</span><span style="color:#E1E4E8">(filter)</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">        println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"พบหนังสือ: {:?}"</span><span style="color:#E1E4E8">, book);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // ค้นหาหลายรายการ (ใช้ Cursor ร่วมกับ TryStreamExt)</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#F97583"> mut</span><span style="color:#E1E4E8"> cursor </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> books_coll</span><span style="color:#F97583">.</span><span style="color:#B392F0">find</span><span style="color:#E1E4E8">(</span><span style="color:#B392F0">doc!</span><span style="color:#E1E4E8"> {})</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"รายการหนังสือทั้งหมด:"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    while</span><span style="color:#F97583"> let</span><span style="color:#B392F0"> Some</span><span style="color:#E1E4E8">(book) </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> cursor</span><span style="color:#F97583">.</span><span style="color:#B392F0">try_next</span><span style="color:#E1E4E8">()</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">        println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"- {} โดย {}"</span><span style="color:#E1E4E8">, book</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">title, book</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">author);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#a0aab5">    // 4. UPDATE: แก้ไขข้อมูล (Update One)</span></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> update_filter </span><span style="color:#F97583">=</span><span style="color:#B392F0"> doc!</span><span style="color:#E1E4E8"> { </span><span style="color:#9ECBFF">"title"</span><span style="color:#F97583">:</span><span style="color:#9ECBFF"> "The Rust Programming Language"</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> update_doc </span><span style="color:#F97583">=</span><span style="color:#B392F0"> doc!</span><span style="color:#E1E4E8"> { </span><span style="color:#9ECBFF">"$set"</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> { </span><span style="color:#9ECBFF">"year"</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> 2025</span><span style="color:#E1E4E8"> } };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> update_result </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> books_coll</span><span style="color:#F97583">.</span><span style="color:#B392F0">update_one</span><span style="color:#E1E4E8">(update_filter, update_doc)</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"อัปเดตข้อมูลแล้ว {} รายการ"</span><span style="color:#E1E4E8">, update_result</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">modified_count);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#a0aab5">    // 5. DELETE: ลบข้อมูล (Delete One)</span></span>
+<span class="line"><span style="color:#a0aab5">    // ---------------------------------------------------------</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> delete_filter </span><span style="color:#F97583">=</span><span style="color:#B392F0"> doc!</span><span style="color:#E1E4E8"> { </span><span style="color:#9ECBFF">"title"</span><span style="color:#F97583">:</span><span style="color:#9ECBFF"> "The Rust Programming Language"</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> delete_result </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> books_coll</span><span style="color:#F97583">.</span><span style="color:#B392F0">delete_one</span><span style="color:#E1E4E8">(delete_filter)</span><span style="color:#F97583">.await?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"ลบข้อมูลแล้ว {} รายการ"</span><span style="color:#E1E4E8">, delete_result</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">deleted_count);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">    Ok</span><span style="color:#E1E4E8">(())</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span></code></pre></div><p data-line="99" class="code-line">จุดสำคัญที่ควรรู้</p>
+<ul data-line="101" class="code-line">
+<li data-line="101" class="code-line"><code>การจัดการ _id</code>: ฟิลด์ id ใน Struct ควรใช้ #[serde(rename = "_id", skip_serializing_if = "Option::is_none")] เพื่อให้ MongoDB สร้าง ObjectId ให้อัตโนมัติเมื่อค่าเป็น None ตอนสั่ง insert_one</li>
+<li data-line="102" class="code-line"><code>การใช้ doc! Macro</code>: มาโคร doc! { ... } จากไลบรารี mongodb::bson ใช้สร้างเอกสาร BSON สำหรับทำ Filter หรือ Update Query ได้เหมือนกับการเขียน JSON ใน MongoDB Shell</li>
+<li data-line="103" class="code-line"><code>การทำงานแบบ Async</code>: คำสั่งจัดการฐานข้อมูลเกือบทั้งหมดต้องตามด้วย .await และห้ามยกเลิก (Drop) Future กลางคันด้วย Timeout เพราะอาจทำให้สถานะการเชื่อมต่อภายในเสียหายได้ <a href="https://www.mongodb.com/docs/drivers/rust/current/get-started/" target="_blank" rel="nofollow noopener noreferrer">1</a>, <a href="https://docs.rs/mongodb/latest/mongodb/" target="_blank" rel="nofollow noopener noreferrer">2</a>, <a href="https://github.com/mongodb/mongo-rust-driver" target="_blank" rel="nofollow noopener noreferrer">3</a><br />
+สามารถศึกษาคำสั่งขั้นสูงเพิ่มเติมเช่น Aggregation หรือ Transactions ได้ที่ คู่มือ MongoDB Rust Driver ฉบับทางการ <a href="https://www.mongodb.com/docs/drivers/rust/current/" target="_blank" rel="nofollow noopener noreferrer">1</a>, <a href="https://www.mongodb.com/docs/drivers/rust/current/crud/transactions/" target="_blank" rel="nofollow noopener noreferrer">2</a></li>
+</ul>
+<p data-line="106" class="code-line">หากต้องการต่อยอด ผมสามารถช่วยเขียนตัวอย่างเพิ่มเติมได้ครับ เพียงแจ้งว่าคุณสนใจส่วนไหนเป็นพิเศษ:<br />
+• การนำไปใช้ร่วมกับ Web Framework (เช่น Axum หรือ Actix-web) เพื่อสร้าง REST API<br />
+• การทำ Aggregation Pipeline หรือ Transactions<br />
+• การตั้งค่า Connection Pool และจัดการ Error สำหรับใช้งานจริงบน Production</p>
+</div>
+  </div>
+</body>
+</html>

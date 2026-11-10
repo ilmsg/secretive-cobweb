@@ -4,7 +4,7 @@ const matter = require('gray-matter');
 const yaml = require('js-yaml');
 const markdownToHtml = require('zenn-markdown-html').default;
 
-const DIST_DIR = 'dist';
+const DIST_DIR = 'docs';
 
 const createPage = (title, contentHtml, backLink = '') => `<!DOCTYPE html>
 <html lang="th">
