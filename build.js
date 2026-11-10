@@ -43,6 +43,8 @@ async function build() {
     fs.cpSync('images', path.join(DIST_DIR, 'images'), { recursive: true });
   }
 
+  fs.copyFileSync(path.join(__dirname, 'CNAME'), path.join(DIST_DIR,'CNAME'));
+
   const articleLinks = [];
   const bookLinks = [];
 

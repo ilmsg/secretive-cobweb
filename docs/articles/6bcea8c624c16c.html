@@ -25,16 +25,21 @@
 <ol data-line="3" class="code-line">
 <li data-line="3" class="code-line">การเลือก Tech Stack (Rust Ecosystem)</li>
 </ol>
-<p data-line="5" class="code-line">เพื่อให้พัฒนาได้รวดเร็วและเสถียร ควรเลือกใช้ Crate ที่เป็นที่นิยมและมี Community แข็งแรง:<br />
-• Web Framework: Axum (แนะนำที่สุดในปัจจุบัน เพราะทำงานร่วมกับ Tokio และ Towerได้ดีมาก มีความยืดหยุ่นและเรียนรู้ไม่ยาก) หรือ Actix-web (ประสิทธิภาพสูงสุด)<br />
-• Async Runtime: Tokio (มาตรฐานหลักของ Rust)<br />
-• Database &amp; ORM:<br />
-• PostgreSQL (เหมาะกับข้อมูลที่มีความสัมพันธ์ซับซ้อน เช่น Order, User, Shop)<br />
-• SQLx (เขียน Raw SQL ที่ตรวจสอบความถูกต้องตอน Compile-time ได้) หรือ SeaORM (หากชอบแบบ ActiveRecord / ORM เต็มรูปแบบ)<br />
-• Search Engine: Meilisearch (เขียนด้วย Rust เร็วมาก และทำ Faceted Search/Filter ได้ง่ายคล้าย Etsy) หรือ Elasticsearch<br />
-• Caching &amp; Session: Redis (ใช้ deadpool-redis หรือ fred) สำหรับเก็บตะกร้าสินค้า (Cart) และ Rate Limiting<br />
-• Storage (รูปภาพสินค้า): AWS S3 หรือ Cloudflare R2 (ใช้ aws-sdk-s3 ร่วมกับ Crate image เพื่อย่อขนาดและแปลงไฟล์เป็น WebP อัตโนมัติ)<br />
-• Payment Gateway: Stripe Connect (สำคัญมากสำหรับ Marketplace เพราะต้องรองรับการแบ่งเงินให้ผู้ขายหลายราย - Split Payments) ใช้ Crate async-stripe</p>
+<p data-line="5" class="code-line">เพื่อให้พัฒนาได้รวดเร็วและเสถียร ควรเลือกใช้ Crate ที่เป็นที่นิยมและมี Community แข็งแรง:</p>
+<ul data-line="6" class="code-line">
+<li data-line="6" class="code-line">Web Framework: Axum (แนะนำที่สุดในปัจจุบัน เพราะทำงานร่วมกับ Tokio และ Towerได้ดีมาก มีความยืดหยุ่นและเรียนรู้ไม่ยาก) หรือ Actix-web (ประสิทธิภาพสูงสุด)</li>
+<li data-line="7" class="code-line">Async Runtime: Tokio (มาตรฐานหลักของ Rust)</li>
+<li data-line="8" class="code-line">Database &amp; ORM:
+<ul data-line="9" class="code-line">
+<li data-line="9" class="code-line">PostgreSQL (เหมาะกับข้อมูลที่มีความสัมพันธ์ซับซ้อน เช่น Order, User, Shop)</li>
+<li data-line="10" class="code-line">SQLx (เขียน Raw SQL ที่ตรวจสอบความถูกต้องตอน Compile-time ได้) หรือ SeaORM (หากชอบแบบ ActiveRecord / ORM เต็มรูปแบบ)</li>
+</ul>
+</li>
+<li data-line="11" class="code-line">Search Engine: Meilisearch (เขียนด้วย Rust เร็วมาก และทำ Faceted Search/Filter ได้ง่ายคล้าย Etsy) หรือ Elasticsearch</li>
+<li data-line="12" class="code-line">Caching &amp; Session: Redis (ใช้ deadpool-redis หรือ fred) สำหรับเก็บตะกร้าสินค้า (Cart) และ Rate Limiting</li>
+<li data-line="13" class="code-line">Storage (รูปภาพสินค้า): AWS S3 หรือ Cloudflare R2 (ใช้ aws-sdk-s3 ร่วมกับ Crate image เพื่อย่อขนาดและแปลงไฟล์เป็น WebP อัตโนมัติ)</li>
+<li data-line="14" class="code-line">Payment Gateway: Stripe Connect (สำคัญมากสำหรับ Marketplace เพราะต้องรองรับการแบ่งเงินให้ผู้ขายหลายราย - Split Payments) ใช้ Crate async-stripe</li>
+</ul>
 <ol start="2" data-line="16" class="code-line">
 <li data-line="16" class="code-line">สถาปัตยกรรมระบบ (System Architecture)</li>
 </ol>
@@ -52,36 +57,46 @@
 <span class="line"><span></span></span></code></pre></div><ol start="3" data-line="33" class="code-line">
 <li data-line="33" class="code-line">การออกแบบฐานข้อมูลหลัก (Core Database Schema)</li>
 </ol>
-<p data-line="35" class="code-line">หัวใจของ Marketplace แบบ Etsy คือการที่ 1 User สามารถเปิดร้านค้า (Shop) ได้ และ 1 คำสั่งซื้อ (Order) อาจมีสินค้าจากหลายร้านค้าปนกัน<br />
-• users: id, email, password_hash, role (Buyer, Seller, Admin), created_at<br />
-• shops: id, owner_id (FK -&gt; users), shop_name, slug, description, stripe_account_id, rating<br />
-• categories: id, parent_id (รองรับหมวดหมู่ย่อย), name, slug<br />
-• products: id, shop_id (FK -&gt; shops), category_id, title, description, base_price, is_handmade, is_vintage, status<br />
-• product_variants: id, product_id, sku, attributes (JSONB เช่น {"color": "red", "size": "M"}), price_override, stock_quantity<br />
-• orders (Master Order): id, buyer_id, total_amount, payment_intent_id, status<br />
-• sub_orders (Shop Order): id, order_id (FK -&gt; orders), shop_id (FK -&gt; shops), subtotal, shipping_status, tracking_number (แยกตามร้านค้าเพื่อให้ผู้ขายแต่ละคนจัดการจัดส่งของตัวเองได้)<br />
-• order_items: id, sub_order_id, variant_id, quantity, unit_price, customization_note (สำคัญสำหรับ Etsy ที่ลูกค้ามักสั่งสลักชื่อหรือปรับแต่งสินค้า)<br />
-• reviews: id, order_item_id, buyer_id, shop_id, rating, comment, images</p>
+<p data-line="35" class="code-line">หัวใจของ Marketplace แบบ Etsy คือการที่ 1 User สามารถเปิดร้านค้า (Shop) ได้ และ 1 คำสั่งซื้อ (Order) อาจมีสินค้าจากหลายร้านค้าปนกัน</p>
+<ul data-line="36" class="code-line">
+<li data-line="36" class="code-line">users: id, email, password_hash, role (Buyer, Seller, Admin), created_at</li>
+<li data-line="37" class="code-line">shops: id, owner_id (FK -&gt; users), shop_name, slug, description, stripe_account_id, rating</li>
+<li data-line="38" class="code-line">categories: id, parent_id (รองรับหมวดหมู่ย่อย), name, slug</li>
+<li data-line="39" class="code-line">products: id, shop_id (FK -&gt; shops), category_id, title, description, base_price, is_handmade, is_vintage, status</li>
+<li data-line="40" class="code-line">product_variants: id, product_id, sku, attributes (JSONB เช่น {"color": "red", "size": "M"}), price_override, stock_quantity</li>
+<li data-line="41" class="code-line">orders (Master Order): id, buyer_id, total_amount, payment_intent_id, status</li>
+<li data-line="42" class="code-line">sub_orders (Shop Order): id, order_id (FK -&gt; orders), shop_id (FK -&gt; shops), subtotal, shipping_status, tracking_number (แยกตามร้านค้าเพื่อให้ผู้ขายแต่ละคนจัดการจัดส่งของตัวเองได้)</li>
+<li data-line="43" class="code-line">order_items: id, sub_order_id, variant_id, quantity, unit_price, customization_note (สำคัญสำหรับ Etsy ที่ลูกค้ามักสั่งสลักชื่อหรือปรับแต่งสินค้า)</li>
+<li data-line="44" class="code-line">reviews: id, order_item_id, buyer_id, shop_id, rating, comment, images</li>
+</ul>
 <ol start="4" data-line="46" class="code-line">
 <li data-line="46" class="code-line">
 <p data-line="46" class="code-line">ฟีเจอร์สำคัญและความท้าทายทางเทคนิค (Key Challenges &amp; Solutions)</p>
 </li>
 <li data-line="48" class="code-line">
-<p data-line="48" class="code-line">การจัดการสต็อกสินค้าพร้อมกัน (Concurrency &amp; Inventory):<br />
-• ปัญหา: งานแฮนด์เมดมักมีชิ้นเดียว ถ้าคนกดซื้อพร้อมกันอาจเกิดการขายเกิน (Overselling)<br />
-• ทางแก้ใน Rust: ใช้ Database Transaction (sqlx::Transaction) ร่วมกับ SELECT ... FOR UPDATE เพื่อ Lock แถวข้อมูลสต็อกชั่วคราวขณะตัดยอด</p>
+<p data-line="48" class="code-line">การจัดการสต็อกสินค้าพร้อมกัน (Concurrency &amp; Inventory):</p>
+<ul data-line="49" class="code-line">
+<li data-line="49" class="code-line">ปัญหา: งานแฮนด์เมดมักมีชิ้นเดียว ถ้าคนกดซื้อพร้อมกันอาจเกิดการขายเกิน (Overselling)</li>
+<li data-line="50" class="code-line">ทางแก้ใน Rust: ใช้ Database Transaction (sqlx::Transaction) ร่วมกับ SELECT ... FOR UPDATE เพื่อ Lock แถวข้อมูลสต็อกชั่วคราวขณะตัดยอด</li>
+</ul>
 </li>
 <li data-line="51" class="code-line">
-<p data-line="51" class="code-line">ระบบชำระเงินแบบ Multi-Vendor (Split Payments):<br />
-• ทางแก้: ใช้ Stripe Connect เมื่อผู้ซื้อจ่ายเงินก้อนเดียว ระบบจะหักค่าธรรมเนียมแพลตฟอร์ม (Platform Fee เช่น 6.5% เหมือน Etsy) และโอนส่วนที่เหลือเข้าบัญชีผู้ขายแต่ละร้านโดยอัตโนมัติ</p>
+<p data-line="51" class="code-line">ระบบชำระเงินแบบ Multi-Vendor (Split Payments):</p>
+<ul data-line="52" class="code-line">
+<li data-line="52" class="code-line">ทางแก้: ใช้ Stripe Connect เมื่อผู้ซื้อจ่ายเงินก้อนเดียว ระบบจะหักค่าธรรมเนียมแพลตฟอร์ม (Platform Fee เช่น 6.5% เหมือน Etsy) และโอนส่วนที่เหลือเข้าบัญชีผู้ขายแต่ละร้านโดยอัตโนมัติ</li>
+</ul>
 </li>
 <li data-line="53" class="code-line">
-<p data-line="53" class="code-line">ระบบค้นหาและตัวกรอง (Search &amp; Discovery):<br />
-• ทางแก้: เมื่อมีการสร้างหรือแก้ไขสินค้าใน PostgreSQL ให้ส่ง Event ผ่าน Channel (เช่น tokio::sync::mpsc หรือ Redis Streams) เพื่อให้ Background Worker อัปเดตข้อมูลไปยัง Meilisearch แบบ Real-time ทำให้ค้นหาตามสี ราคา วัสดุ และสถานที่จัดส่งได้ในระดับมิลลิวินาที</p>
+<p data-line="53" class="code-line">ระบบค้นหาและตัวกรอง (Search &amp; Discovery):</p>
+<ul data-line="54" class="code-line">
+<li data-line="54" class="code-line">ทางแก้: เมื่อมีการสร้างหรือแก้ไขสินค้าใน PostgreSQL ให้ส่ง Event ผ่าน Channel (เช่น tokio::sync::mpsc หรือ Redis Streams) เพื่อให้ Background Worker อัปเดตข้อมูลไปยัง Meilisearch แบบ Real-time ทำให้ค้นหาตามสี ราคา วัสดุ และสถานที่จัดส่งได้ในระดับมิลลิวินาที</li>
+</ul>
 </li>
 <li data-line="55" class="code-line">
-<p data-line="55" class="code-line">ระบบข้อความระหว่างผู้ซื้อและผู้ขาย (Real-time Chat):<br />
-• ทางแก้: ใช้ WebSockets ใน Axum (axum::extract::ws) ร่วมกับ Redis Pub/Sub เพื่อรองรับการส่งรูปภาพตัวอย่างงานสั่งทำ (Custom Orders)</p>
+<p data-line="55" class="code-line">ระบบข้อความระหว่างผู้ซื้อและผู้ขาย (Real-time Chat):</p>
+<ul data-line="56" class="code-line">
+<li data-line="56" class="code-line">ทางแก้: ใช้ WebSockets ใน Axum (axum::extract::ws) ร่วมกับ Redis Pub/Sub เพื่อรองรับการส่งรูปภาพตัวอย่างงานสั่งทำ (Custom Orders)</li>
+</ul>
 </li>
 <li data-line="58" class="code-line">
 <p data-line="58" class="code-line">ตัวอย่างโครงสร้างโค้ด (Axum + SQLx)</p>
@@ -150,11 +165,13 @@
 <span class="line"><span style="color:#E1E4E8">}</span></span>
 <span class="line"></span></code></pre></div><p data-line="124" class="code-line">ข้อแนะนำเพิ่มเติมสำหรับ Frontend</p>
 <p data-line="126" class="code-line">เนื่องจาก Rust เหมาะกับการทำ Backend API ส่วนหน้าบ้าน (Frontend) แนะนำให้ใช้ Next.js (React) หรือ SvelteKit เพื่อทำ SSR (Server-Side Rendering) ซึ่งสำคัญมากสำหรับ Marketplace เพราะหน้าสินค้าทุกรายการต้องติดอันดับ SEO บน Google ได้ดีครับ</p>
-<p data-line="128" class="code-line">หากต้องการเจาะลึกส่วนใดเป็นพิเศษ สามารถแจ้งได้เลยครับ เช่น:<br />
-• โครงสร้าง Database Schema แบบละเอียด (SQL Migration)<br />
-• การออกแบบระบบ ตะกร้าสินค้าและ Checkout แบบ Multi-vendor<br />
-• ตัวอย่างการวาง Project Boilerplate ด้วย Axum และ SQLx<br />
-• การเชื่อมต่อ Frontend (เช่น Next.js) เข้ากับ Rust Backend</p>
+<p data-line="128" class="code-line">หากต้องการเจาะลึกส่วนใดเป็นพิเศษ สามารถแจ้งได้เลยครับ เช่น:</p>
+<ul data-line="129" class="code-line">
+<li data-line="129" class="code-line">โครงสร้าง Database Schema แบบละเอียด (SQL Migration)</li>
+<li data-line="130" class="code-line">การออกแบบระบบ ตะกร้าสินค้าและ Checkout แบบ Multi-vendor</li>
+<li data-line="131" class="code-line">ตัวอย่างการวาง Project Boilerplate ด้วย Axum และ SQLx</li>
+<li data-line="132" class="code-line">การเชื่อมต่อ Frontend (เช่น Next.js) เข้ากับ Rust Backend</li>
+</ul>
 </div>
   </div>
 </body>
