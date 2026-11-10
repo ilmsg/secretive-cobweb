@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>การออกแบบ Marketplace คล้าย Etsy</title>
+  <link rel="stylesheet" href="https://unpkg.com">
+  <script src="https://zenn.studio"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; line-height: 1.7; background: #f9fafb; margin: 0; }
+    .container { max-width: 820px; margin: 40px auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav { margin-bottom: 24px; font-size: 14px; }
+    .nav a { color: #3ea8ff; text-decoration: none; }
+    .card-list { list-style: none; padding: 0; }
+    .card-list li { border-bottom: 1px solid #eee; padding: 12px 0; }
+    .card-list a { text-decoration: none; color: #111; font-weight: bold; font-size: 18px; }
+    .card-list a:hover { color: #3ea8ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav"><a href="../index.html">← กลับหน้าหลัก</a></div>
+    <h1>🐥 การออกแบบ Marketplace คล้าย Etsy</h1><div class="znc"><p data-line="0" class="code-line">การออกแบบ Marketplace คล้าย Etsy (ซึ่งเป็นแพลตฟอร์มซื้อขายงานฝีมือ สินค้าแฮนด์เมด และสินค้าวินเทจแบบ Multi-vendor) ด้วยภาษา Rust เป็นการตัดสินใจที่ยอดเยี่ยมในแง่ของประสิทธิภาพ (Performance), ความปลอดภัยของหน่วยความจำ (Memory Safety), และการรองรับการทำ Concurrency สูง<br />
+สถาปัตยกรรมและโครงสร้างการออกแบบระบบ (System Design) สามารถแบ่งออกเป็นส่วนสำคัญได้ดังนี้:</p>
+<ol data-line="3" class="code-line">
+<li data-line="3" class="code-line">การเลือก Tech Stack (Rust Ecosystem)</li>
+</ol>
+<p data-line="5" class="code-line">เพื่อให้พัฒนาได้รวดเร็วและเสถียร ควรเลือกใช้ Crate ที่เป็นที่นิยมและมี Community แข็งแรง:<br />
+• Web Framework: Axum (แนะนำที่สุดในปัจจุบัน เพราะทำงานร่วมกับ Tokio และ Towerได้ดีมาก มีความยืดหยุ่นและเรียนรู้ไม่ยาก) หรือ Actix-web (ประสิทธิภาพสูงสุด)<br />
+• Async Runtime: Tokio (มาตรฐานหลักของ Rust)<br />
+• Database &amp; ORM:<br />
+• PostgreSQL (เหมาะกับข้อมูลที่มีความสัมพันธ์ซับซ้อน เช่น Order, User, Shop)<br />
+• SQLx (เขียน Raw SQL ที่ตรวจสอบความถูกต้องตอน Compile-time ได้) หรือ SeaORM (หากชอบแบบ ActiveRecord / ORM เต็มรูปแบบ)<br />
+• Search Engine: Meilisearch (เขียนด้วย Rust เร็วมาก และทำ Faceted Search/Filter ได้ง่ายคล้าย Etsy) หรือ Elasticsearch<br />
+• Caching &amp; Session: Redis (ใช้ deadpool-redis หรือ fred) สำหรับเก็บตะกร้าสินค้า (Cart) และ Rate Limiting<br />
+• Storage (รูปภาพสินค้า): AWS S3 หรือ Cloudflare R2 (ใช้ aws-sdk-s3 ร่วมกับ Crate image เพื่อย่อขนาดและแปลงไฟล์เป็น WebP อัตโนมัติ)<br />
+• Payment Gateway: Stripe Connect (สำคัญมากสำหรับ Marketplace เพราะต้องรองรับการแบ่งเงินให้ผู้ขายหลายราย - Split Payments) ใช้ Crate async-stripe</p>
+<ol start="2" data-line="16" class="code-line">
+<li data-line="16" class="code-line">สถาปัตยกรรมระบบ (System Architecture)</li>
+</ol>
+<p data-line="18" class="code-line">สำหรับระยะเริ่มต้น (MVP) แนะนำให้เริ่มจาก Modular Monolith (แบ่งโค้ดเป็น Module ชัดเจนในโปรเจกต์เดียว) เพื่อลดความซับซ้อนในการ Deploy และค่อยแยกเป็น Microservices เมื่อระบบใหญ่ขึ้น<br />
+โครงสร้าง Folder (Workspace) ที่แนะนำ:</p>
+<div class="code-block-container"><pre class="shiki github-dark" style="background-color:#151e2c;color:#e1e4e8"><code class="code-line" data-line="21"><span class="line"><span>etsy-clone/</span></span>
+<span class="line"><span>├── Cargo.toml          # Workspace configuration</span></span>
+<span class="line"><span>├── migrations/         # ไฟล์ SQL migration (sqlx-cli)</span></span>
+<span class="line"><span>├── crates/</span></span>
+<span class="line"><span>│   ├── api/            # Axum routes, middlewares, handlers</span></span>
+<span class="line"><span>│   ├── core/           # Business logic, Domain models, Traits</span></span>
+<span class="line"><span>│   ├── db/             # Database connection, SQL queries</span></span>
+<span class="line"><span>│   ├── search/         # ตัวเชื่อมต่อ Meilisearch</span></span>
+<span class="line"><span>│   └── worker/         # Background jobs (ส่งอีเมล, ประมวลผลรูปภาพ)</span></span>
+<span class="line"><span></span></span></code></pre></div><ol start="3" data-line="33" class="code-line">
+<li data-line="33" class="code-line">การออกแบบฐานข้อมูลหลัก (Core Database Schema)</li>
+</ol>
+<p data-line="35" class="code-line">หัวใจของ Marketplace แบบ Etsy คือการที่ 1 User สามารถเปิดร้านค้า (Shop) ได้ และ 1 คำสั่งซื้อ (Order) อาจมีสินค้าจากหลายร้านค้าปนกัน<br />
+• users: id, email, password_hash, role (Buyer, Seller, Admin), created_at<br />
+• shops: id, owner_id (FK -&gt; users), shop_name, slug, description, stripe_account_id, rating<br />
+• categories: id, parent_id (รองรับหมวดหมู่ย่อย), name, slug<br />
+• products: id, shop_id (FK -&gt; shops), category_id, title, description, base_price, is_handmade, is_vintage, status<br />
+• product_variants: id, product_id, sku, attributes (JSONB เช่น {"color": "red", "size": "M"}), price_override, stock_quantity<br />
+• orders (Master Order): id, buyer_id, total_amount, payment_intent_id, status<br />
+• sub_orders (Shop Order): id, order_id (FK -&gt; orders), shop_id (FK -&gt; shops), subtotal, shipping_status, tracking_number (แยกตามร้านค้าเพื่อให้ผู้ขายแต่ละคนจัดการจัดส่งของตัวเองได้)<br />
+• order_items: id, sub_order_id, variant_id, quantity, unit_price, customization_note (สำคัญสำหรับ Etsy ที่ลูกค้ามักสั่งสลักชื่อหรือปรับแต่งสินค้า)<br />
+• reviews: id, order_item_id, buyer_id, shop_id, rating, comment, images</p>
+<ol start="4" data-line="46" class="code-line">
+<li data-line="46" class="code-line">
+<p data-line="46" class="code-line">ฟีเจอร์สำคัญและความท้าทายทางเทคนิค (Key Challenges &amp; Solutions)</p>
+</li>
+<li data-line="48" class="code-line">
+<p data-line="48" class="code-line">การจัดการสต็อกสินค้าพร้อมกัน (Concurrency &amp; Inventory):<br />
+• ปัญหา: งานแฮนด์เมดมักมีชิ้นเดียว ถ้าคนกดซื้อพร้อมกันอาจเกิดการขายเกิน (Overselling)<br />
+• ทางแก้ใน Rust: ใช้ Database Transaction (sqlx::Transaction) ร่วมกับ SELECT ... FOR UPDATE เพื่อ Lock แถวข้อมูลสต็อกชั่วคราวขณะตัดยอด</p>
+</li>
+<li data-line="51" class="code-line">
+<p data-line="51" class="code-line">ระบบชำระเงินแบบ Multi-Vendor (Split Payments):<br />
+• ทางแก้: ใช้ Stripe Connect เมื่อผู้ซื้อจ่ายเงินก้อนเดียว ระบบจะหักค่าธรรมเนียมแพลตฟอร์ม (Platform Fee เช่น 6.5% เหมือน Etsy) และโอนส่วนที่เหลือเข้าบัญชีผู้ขายแต่ละร้านโดยอัตโนมัติ</p>
+</li>
+<li data-line="53" class="code-line">
+<p data-line="53" class="code-line">ระบบค้นหาและตัวกรอง (Search &amp; Discovery):<br />
+• ทางแก้: เมื่อมีการสร้างหรือแก้ไขสินค้าใน PostgreSQL ให้ส่ง Event ผ่าน Channel (เช่น tokio::sync::mpsc หรือ Redis Streams) เพื่อให้ Background Worker อัปเดตข้อมูลไปยัง Meilisearch แบบ Real-time ทำให้ค้นหาตามสี ราคา วัสดุ และสถานที่จัดส่งได้ในระดับมิลลิวินาที</p>
+</li>
+<li data-line="55" class="code-line">
+<p data-line="55" class="code-line">ระบบข้อความระหว่างผู้ซื้อและผู้ขาย (Real-time Chat):<br />
+• ทางแก้: ใช้ WebSockets ใน Axum (axum::extract::ws) ร่วมกับ Redis Pub/Sub เพื่อรองรับการส่งรูปภาพตัวอย่างงานสั่งทำ (Custom Orders)</p>
+</li>
+<li data-line="58" class="code-line">
+<p data-line="58" class="code-line">ตัวอย่างโครงสร้างโค้ด (Axum + SQLx)</p>
+</li>
+</ol>
+<p data-line="60" class="code-line">ตัวอย่างการสร้าง Endpoint สำหรับสร้างสินค้าใหม่พร้อมเช็กสิทธิ์เจ้าของร้าน:</p>
+<div class="code-block-container"><pre class="shiki github-dark" style="background-color:#151e2c;color:#e1e4e8"><code class="code-line" data-line="61"><span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> axum</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">{</span><span style="color:#B392F0">extract</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">{</span><span style="color:#B392F0">State</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Json</span><span style="color:#E1E4E8">}, </span><span style="color:#B392F0">http</span><span style="color:#F97583">::</span><span style="color:#B392F0">StatusCode</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">response</span><span style="color:#F97583">::</span><span style="color:#B392F0">IntoResponse</span><span style="color:#E1E4E8">};</span></span>
+<span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> serde</span><span style="color:#F97583">::</span><span style="color:#E1E4E8">{</span><span style="color:#B392F0">Deserialize</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Serialize</span><span style="color:#E1E4E8">};</span></span>
+<span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> sqlx</span><span style="color:#F97583">::</span><span style="color:#B392F0">PgPool</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">use</span><span style="color:#B392F0"> uuid</span><span style="color:#F97583">::</span><span style="color:#B392F0">Uuid</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E1E4E8">#[derive(</span><span style="color:#B392F0">Deserialize</span><span style="color:#E1E4E8">)]</span></span>
+<span class="line"><span style="color:#F97583">pub</span><span style="color:#F97583"> struct</span><span style="color:#B392F0"> CreateProductReq</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> shop_id</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Uuid</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> title</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> description</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> price_cents</span><span style="color:#F97583">:</span><span style="color:#B392F0"> i64</span><span style="color:#E1E4E8">, </span><span style="color:#a0aab5">// เก็บเงินเป็นหน่วยย่อยสุด (สตางค์/เซ็นต์) เลี่ยงปัญหา Floating point</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> stock</span><span style="color:#F97583">:</span><span style="color:#B392F0"> i32</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E1E4E8">#[derive(</span><span style="color:#B392F0">Serialize</span><span style="color:#E1E4E8">)]</span></span>
+<span class="line"><span style="color:#F97583">pub</span><span style="color:#F97583"> struct</span><span style="color:#B392F0"> ProductRes</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> id</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Uuid</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#F97583">    pub</span><span style="color:#E1E4E8"> title</span><span style="color:#F97583">:</span><span style="color:#B392F0"> String</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">pub</span><span style="color:#F97583"> async</span><span style="color:#F97583"> fn</span><span style="color:#B392F0"> create_product</span><span style="color:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#B392F0">    State</span><span style="color:#E1E4E8">(pool)</span><span style="color:#F97583">:</span><span style="color:#B392F0"> State</span><span style="color:#E1E4E8">&lt;</span><span style="color:#B392F0">PgPool</span><span style="color:#E1E4E8">&gt;,</span></span>
+<span class="line"><span style="color:#a0aab5">    // AuthUser คือ Custom Extractor ที่ตรวจสอบ JWT Token</span></span>
+<span class="line"><span style="color:#E1E4E8">    auth_user</span><span style="color:#F97583">:</span><span style="color:#B392F0"> AuthUser</span><span style="color:#E1E4E8">, </span></span>
+<span class="line"><span style="color:#B392F0">    Json</span><span style="color:#E1E4E8">(payload)</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Json</span><span style="color:#E1E4E8">&lt;</span><span style="color:#B392F0">CreateProductReq</span><span style="color:#E1E4E8">&gt;,</span></span>
+<span class="line"><span style="color:#E1E4E8">) </span><span style="color:#F97583">-&gt;</span><span style="color:#B392F0"> Result</span><span style="color:#E1E4E8">&lt;</span><span style="color:#F97583">impl</span><span style="color:#B392F0"> IntoResponse</span><span style="color:#E1E4E8">, (</span><span style="color:#B392F0">StatusCode</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">String</span><span style="color:#E1E4E8">)&gt; {</span></span>
+<span class="line"><span style="color:#E1E4E8">    </span></span>
+<span class="line"><span style="color:#a0aab5">    // 1. ตรวจสอบว่า User เป็นเจ้าของร้านนี้จริงหรือไม่</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> is_owner </span><span style="color:#F97583">=</span><span style="color:#B392F0"> sqlx</span><span style="color:#F97583">::</span><span style="color:#B392F0">query_scalar!</span><span style="color:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#9ECBFF">        "SELECT EXISTS(SELECT 1 FROM shops WHERE id = $1 AND owner_id = $2)"</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">        payload</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">shop_id,</span></span>
+<span class="line"><span style="color:#E1E4E8">        auth_user</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">user_id</span></span>
+<span class="line"><span style="color:#E1E4E8">    )</span></span>
+<span class="line"><span style="color:#F97583">    .</span><span style="color:#B392F0">fetch_one</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">pool)</span></span>
+<span class="line"><span style="color:#F97583">    .await</span></span>
+<span class="line"><span style="color:#F97583">    .</span><span style="color:#B392F0">map_err</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">|</span><span style="color:#E1E4E8">e</span><span style="color:#F97583">|</span><span style="color:#E1E4E8"> (</span><span style="color:#B392F0">StatusCode</span><span style="color:#F97583">::</span><span style="color:#79B8FF">INTERNAL_SERVER_ERROR</span><span style="color:#E1E4E8">, e</span><span style="color:#F97583">.</span><span style="color:#B392F0">to_string</span><span style="color:#E1E4E8">()))</span><span style="color:#F97583">?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#F97583"> !</span><span style="color:#E1E4E8">is_owner</span><span style="color:#F97583">.</span><span style="color:#B392F0">unwrap_or</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">false</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">        return</span><span style="color:#B392F0"> Err</span><span style="color:#E1E4E8">((</span><span style="color:#B392F0">StatusCode</span><span style="color:#F97583">::</span><span style="color:#79B8FF">FORBIDDEN</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"คุณไม่มีสิทธิ์จัดการร้านค้านี้"</span><span style="color:#F97583">.</span><span style="color:#B392F0">into</span><span style="color:#E1E4E8">()));</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">    // 2. บันทึกสินค้าลงฐานข้อมูล</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> product_id </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Uuid</span><span style="color:#F97583">::</span><span style="color:#B392F0">new_v4</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#B392F0">    sqlx</span><span style="color:#F97583">::</span><span style="color:#B392F0">query!</span><span style="color:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#9ECBFF">        r#"</span></span>
+<span class="line"><span style="color:#9ECBFF">        INSERT INTO products (id, shop_id, title, description, base_price)</span></span>
+<span class="line"><span style="color:#9ECBFF">        VALUES ($1, $2, $3, $4, $5)</span></span>
+<span class="line"><span style="color:#9ECBFF">        "#</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">        product_id,</span></span>
+<span class="line"><span style="color:#E1E4E8">        payload</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">shop_id,</span></span>
+<span class="line"><span style="color:#E1E4E8">        payload</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">title,</span></span>
+<span class="line"><span style="color:#E1E4E8">        payload</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">description,</span></span>
+<span class="line"><span style="color:#E1E4E8">        payload</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">price_cents</span></span>
+<span class="line"><span style="color:#E1E4E8">    )</span></span>
+<span class="line"><span style="color:#F97583">    .</span><span style="color:#B392F0">execute</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">pool)</span></span>
+<span class="line"><span style="color:#F97583">    .await</span></span>
+<span class="line"><span style="color:#F97583">    .</span><span style="color:#B392F0">map_err</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">|</span><span style="color:#E1E4E8">e</span><span style="color:#F97583">|</span><span style="color:#E1E4E8"> (</span><span style="color:#B392F0">StatusCode</span><span style="color:#F97583">::</span><span style="color:#79B8FF">INTERNAL_SERVER_ERROR</span><span style="color:#E1E4E8">, e</span><span style="color:#F97583">.</span><span style="color:#B392F0">to_string</span><span style="color:#E1E4E8">()))</span><span style="color:#F97583">?</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">    Ok</span><span style="color:#E1E4E8">((</span><span style="color:#B392F0">StatusCode</span><span style="color:#F97583">::</span><span style="color:#79B8FF">CREATED</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Json</span><span style="color:#E1E4E8">(</span><span style="color:#B392F0">ProductRes</span><span style="color:#E1E4E8"> { id</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> product_id, title</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> payload</span><span style="color:#F97583">.</span><span style="color:#E1E4E8">title })))</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span></code></pre></div><p data-line="124" class="code-line">ข้อแนะนำเพิ่มเติมสำหรับ Frontend</p>
+<p data-line="126" class="code-line">เนื่องจาก Rust เหมาะกับการทำ Backend API ส่วนหน้าบ้าน (Frontend) แนะนำให้ใช้ Next.js (React) หรือ SvelteKit เพื่อทำ SSR (Server-Side Rendering) ซึ่งสำคัญมากสำหรับ Marketplace เพราะหน้าสินค้าทุกรายการต้องติดอันดับ SEO บน Google ได้ดีครับ</p>
+<p data-line="128" class="code-line">หากต้องการเจาะลึกส่วนใดเป็นพิเศษ สามารถแจ้งได้เลยครับ เช่น:<br />
+• โครงสร้าง Database Schema แบบละเอียด (SQL Migration)<br />
+• การออกแบบระบบ ตะกร้าสินค้าและ Checkout แบบ Multi-vendor<br />
+• ตัวอย่างการวาง Project Boilerplate ด้วย Axum และ SQLx<br />
+• การเชื่อมต่อ Frontend (เช่น Next.js) เข้ากับ Rust Backend</p>
+</div>
+  </div>
+</body>
+</html>
