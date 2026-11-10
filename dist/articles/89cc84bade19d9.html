@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dog, Cat, Bird เรียกใช้งานผ่านฟังก์ชัน print_speak(item: &dyn Speaker)</title>
+  <link rel="stylesheet" href="https://unpkg.com">
+  <script src="https://zenn.studio"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; line-height: 1.7; background: #f9fafb; margin: 0; }
+    .container { max-width: 820px; margin: 40px auto; background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav { margin-bottom: 24px; font-size: 14px; }
+    .nav a { color: #3ea8ff; text-decoration: none; }
+    .card-list { list-style: none; padding: 0; }
+    .card-list li { border-bottom: 1px solid #eee; padding: 12px 0; }
+    .card-list a { text-decoration: none; color: #111; font-weight: bold; font-size: 18px; }
+    .card-list a:hover { color: #3ea8ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav"><a href="../index.html">← กลับหน้าหลัก</a></div>
+    <h1>😸 Dog, Cat, Bird เรียกใช้งานผ่านฟังก์ชัน print_speak(item: &dyn Speaker)</h1><div class="znc"><p data-line="0" class="code-line">นี่คือตัวอย่างโค้ดแบบเต็มที่นำ Dog, Cat, และ Bird มาสร้างและเรียกใช้งานผ่านฟังก์ชัน print_speak(item: &amp;dyn Speaker) ครับ คุณสามารถก๊อปปี้โค้ดนี้ไปรันในโปรเจกต์ Rust หรือใน Rust Playground ได้เลยครับ</p>
+<div class="code-block-container"><pre class="shiki github-dark" style="background-color:#151e2c;color:#e1e4e8"><code class="code-line" data-line="2"><span class="line"><span style="color:#a0aab5">// 1. นิยาม Trait ขึ้นมา</span></span>
+<span class="line"><span style="color:#F97583">trait</span><span style="color:#B392F0"> Speaker</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    fn</span><span style="color:#B392F0"> speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#79B8FF">self</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">// 2. สร้าง Type (Struct) ทั้ง 3 ตัว</span></span>
+<span class="line"><span style="color:#F97583">struct</span><span style="color:#B392F0"> Dog</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">struct</span><span style="color:#B392F0"> Cat</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">struct</span><span style="color:#B392F0"> Bird</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">// 3. Implement Trait ให้กับแต่ละ Type</span></span>
+<span class="line"><span style="color:#F97583">impl</span><span style="color:#B392F0"> Speaker</span><span style="color:#F97583"> for</span><span style="color:#B392F0"> Dog</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    fn</span><span style="color:#B392F0"> speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#79B8FF">self</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#B392F0">        println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"🐶 โฮ่ง ๆ!"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">impl</span><span style="color:#B392F0"> Speaker</span><span style="color:#F97583"> for</span><span style="color:#B392F0"> Cat</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    fn</span><span style="color:#B392F0"> speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#79B8FF">self</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#B392F0">        println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"🐱 เหมียว ๆ!"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">impl</span><span style="color:#B392F0"> Speaker</span><span style="color:#F97583"> for</span><span style="color:#B392F0"> Bird</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    fn</span><span style="color:#B392F0"> speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#79B8FF">self</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#B392F0">        println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"🐦 จิ๊บ ๆ!"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#a0aab5">// 4. ฟังก์ชันที่ใช้ `dyn Trait` (Dynamic Dispatch)</span></span>
+<span class="line"><span style="color:#F97583">fn</span><span style="color:#B392F0"> print_speak</span><span style="color:#E1E4E8">(item</span><span style="color:#F97583">:</span><span style="color:#F97583"> &amp;dyn</span><span style="color:#B392F0"> Speaker</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#a0aab5">    // ตอนรันโปรแกรมจะมาเปิดตาราง vtable ที่นี่เพื่อดูว่าต้องเรียกฟังก์ชันของตัวไหน</span></span>
+<span class="line"><span style="color:#E1E4E8">    item</span><span style="color:#F97583">.</span><span style="color:#B392F0">speak</span><span style="color:#E1E4E8">(); </span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">fn</span><span style="color:#B392F0"> main</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#a0aab5">    // สร้าง Instance ของสัตว์แต่ละตัว</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> my_dog </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Dog</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> my_cat </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Cat</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> my_bird </span><span style="color:#F97583">=</span><span style="color:#B392F0"> Bird</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"--- เรียกใช้งานทีละตัวผ่านฟังก์ชัน ---"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#a0aab5">    // ส่ง Reference (&amp;) เข้าไป ตัวแปรจะถูกแปลงเป็น Fat Pointer อัตโนมัติ</span></span>
+<span class="line"><span style="color:#B392F0">    print_speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">my_dog);</span></span>
+<span class="line"><span style="color:#B392F0">    print_speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">my_cat);</span></span>
+<span class="line"><span style="color:#B392F0">    print_speak</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">my_bird);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">    println!</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"</span><span style="color:#79B8FF">\n</span><span style="color:#9ECBFF">--- ประโยชน์ของ dyn: เอามาใส่ Vec รวมกันได้ด้วย ---"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#a0aab5">    // ด้วยพลังของ `dyn` เราสามารถเอาคนละ Type มาเก็บใน Vec เดียวกันได้ (Heterogeneous Collection)</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> zoo</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Vec</span><span style="color:#E1E4E8">&lt;</span><span style="color:#F97583">&amp;dyn</span><span style="color:#B392F0"> Speaker</span><span style="color:#E1E4E8">&gt; </span><span style="color:#F97583">=</span><span style="color:#B392F0"> vec!</span><span style="color:#E1E4E8">[</span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">my_dog, </span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">my_cat, </span><span style="color:#F97583">&amp;</span><span style="color:#E1E4E8">my_bird];</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">    for</span><span style="color:#E1E4E8"> animal </span><span style="color:#F97583">in</span><span style="color:#E1E4E8"> zoo {</span></span>
+<span class="line"><span style="color:#B392F0">        print_speak</span><span style="color:#E1E4E8">(animal);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span></code></pre></div><p data-line="60" class="code-line">💡 อธิบายจุดสำคัญในโค้ด</p>
+<ol data-line="62" class="code-line">
+<li data-line="62" class="code-line">การส่งค่า: ตอนเรียกใช้ print_speak(&amp;my_dog) เราต้องใส่เครื่องหมาย &amp; เสมอ เพราะ dyn Speaker ไม่รู้ขนาดที่แน่นอนในหน่วยความจำ (Unsized) จึงต้องส่งผ่าน Pointer หรือ Reference เสมอ</li>
+<li data-line="63" class="code-line">ความมหัศจรรย์ในฟังก์ชัน main ส่วนล่าง: สังเกตตรง Vec&lt;&amp;dyn Speaker&gt; โค้ดนี้จะทำไม่ได้เลยถ้าเปลี่ยนฟังก์ชันเป็นแบบไม่ใช้ dyn (impl Speaker) เพราะคอมไพเลอร์ Rust จะไม่อนุญาตให้เอา Dog, Cat, Bird ซึ่งเป็นคนละโครงสร้างข้อมูลกันมาอยู่ใน Vec เดียวกันครับ<br />
+จากโค้ดตัวอย่างนี้ มีการใช้ &amp;dyn ซึ่งเป็นการยืมข้อมูลชั่วคราว (Borrowing) คุณอยากรู้เพิ่มเติมเกี่ยวกับวิธีใช้ Box&lt;dyn Speaker&gt; ในกรณีที่เราต้องการย้ายเจ้าของข้อมูล (Ownership) หรือต้องการสร้างสัตว์ขึ้นมาในฟังก์ชันแล้วส่งกลับออกมาไหมครับ?</li>
+</ol>
+</div>
+  </div>
+</body>
+</html>
